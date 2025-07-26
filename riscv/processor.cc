@@ -737,6 +737,9 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     set_privilege(PRV_S);
   } else if (state.prv <= PRV_S && bit < max_xlen && ((hsdeleg >> bit) & 1)) {
     // Handle the trap in HS-mode
+    state.eregsw = state.regsw;
+    state.regsw = 0;
+
     set_virt(false);
     reg_t vector = (state.stvec & 1) && interrupt ? 4*bit : 0;
     state.pc = (state.stvec & ~(reg_t)1) + vector;
@@ -1315,6 +1318,9 @@ void processor_t::set_csr(int which, reg_t val)
       dirty_vs_state;
       VU.vxrm = val & 0x3ul;
       break;
+    case CSR_REGSW:
+      state.regsw = val;
+      break;
   }
 
 #if defined(RISCV_ENABLE_COMMITLOG)
@@ -1409,12 +1415,15 @@ void processor_t::set_csr(int which, reg_t val)
 // side effects on reads.
 reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
 {
+
   uint32_t ctr_en = -1;
   if (state.prv < PRV_M)
     ctr_en &= state.mcounteren;
   if (supports_extension('S') && state.prv < PRV_S)
     ctr_en &= state.scounteren;
   bool ctr_ok = (ctr_en >> (which & 31)) & 1;
+   
+  
   if (state.v)
     ctr_en &= state.hcounteren;
   bool ctr_v_ok = (ctr_en >> (which & 31)) & 1;
@@ -1433,6 +1442,7 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
       goto throw_virtual;
     ret(0);
   }
+  
   if (which >= CSR_MHPMCOUNTER3 && which <= CSR_MHPMCOUNTER31)
     ret(0);
   if (xlen == 32 && which >= CSR_MHPMCOUNTER3H && which <= CSR_MHPMCOUNTER31H)
@@ -1748,6 +1758,12 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
       if (!supports_extension('V'))
         break;
       ret(VU.vlenb);
+    case CSR_REGSW:
+      ret(state.regsw);
+
+    case CSR_EREGSW:
+      ret(state.eregsw);
+      
   }
 
 #undef ret
@@ -1771,7 +1787,7 @@ out:
   unsigned csr_priv = get_field(which, 0x300);
   unsigned priv = state.prv == PRV_S && !state.v ? PRV_HS : state.prv;
 
-  if ((csr_priv == PRV_S && !supports_extension('S')) ||
+  if ((csr_priv == PRV_S  && !supports_extension('S')) ||
       (csr_priv == PRV_HS && !supports_extension('H')))
     goto throw_illegal;
 
