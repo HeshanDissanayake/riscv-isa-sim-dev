@@ -67,6 +67,8 @@ riscv_gen_hdrs = \
 
 
 riscv_insn_ext_i = \
+	regsw \
+	regsw_c \
 	add \
 	addi \
 	addiw \

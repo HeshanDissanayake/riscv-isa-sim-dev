@@ -559,6 +559,12 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_I1TYPE("mv", addi);
   DEFINE_ITYPE(addi);
   DEFINE_ITYPE(slti);
+
+  /*new instruction - regsw(register file switching)*/
+  DEFINE_RTYPE(regsw);
+  DEFINE_ITYPE(regsw_c);
+
+
   add_insn(new disasm_insn_t("seqz", match_sltiu | (1 << imm_shift), mask_sltiu | mask_imm, {&xrd, &xrs1}));
   DEFINE_ITYPE(sltiu);
   add_insn(new disasm_insn_t("not", match_xori | mask_imm, mask_xori | mask_imm, {&xrd, &xrs1}));
