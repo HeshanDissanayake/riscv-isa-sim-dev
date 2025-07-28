@@ -737,8 +737,14 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     set_privilege(PRV_S);
   } else if (state.prv <= PRV_S && bit < max_xlen && ((hsdeleg >> bit) & 1)) {
     // Handle the trap in HS-mode
-    state.eregsw = state.regsw;
-    state.regsw = 0;
+    
+    //regsw edits
+    state.eregsw_c = state.regsw_c;
+    state.eregsw_mask = state.regsw_mask;
+    state.regsw_c = 0;
+    state.regsw_mask = 0;
+    //regsw edits
+
 
     set_virt(false);
     reg_t vector = (state.stvec & 1) && interrupt ? 4*bit : 0;
@@ -1318,9 +1324,13 @@ void processor_t::set_csr(int which, reg_t val)
       dirty_vs_state;
       VU.vxrm = val & 0x3ul;
       break;
-    case CSR_REGSW:
-      state.regsw = val;
+    case CSR_REGSW_C:
+      state.regsw_c = val;
       break;
+    case CSR_REGSW_MASK:
+      state.regsw_mask = val;
+      break;
+
   }
 
 #if defined(RISCV_ENABLE_COMMITLOG)
@@ -1758,11 +1768,30 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
       if (!supports_extension('V'))
         break;
       ret(VU.vlenb);
-    case CSR_REGSW:
-      ret(state.regsw);
+    case CSR_REGSW_C:
+      ret(state.regsw_c);
 
-    case CSR_EREGSW:
-      ret(state.eregsw);
+    case CSR_REGSW_MASK:
+      ret(state.regsw_mask);
+
+    case CSR_EREGSW_C:
+      ret(state.eregsw_c);
+
+    case CSR_EREGSW_MASK:
+      ret(state.eregsw_mask);
+
+    case CSR_INC_MASK:
+      state.regsw_mask++;
+      ret(state.regsw_mask);
+
+    case CSR_RS1_BANK:
+      ret(state.regsw_bank_rs1);
+    
+    case CSR_RS2_BANK:
+      ret(state.regsw_bank_rs2);
+    
+    case CSR_RD_BANK:
+      ret(state.regsw_bank_rd);
       
   }
 

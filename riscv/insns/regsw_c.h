@@ -1,1 +1,1 @@
-printf("regsw_c\n");
+UPDATE_REGSW_C

@@ -26,7 +26,7 @@ typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 #endif
 
-const int NXPR = 32;
+const int NXPR = 128;
 const int NFPR = 32;
 const int NVPR = 32;
 const int NCSR = 4096;
@@ -179,10 +179,30 @@ private:
 #define READ_REG(reg) STATE.XPR[reg]
 #define READ_FREG(reg) STATE.FPR[reg]
 #define RD READ_REG(insn.rd())
-#define RS1 READ_REG(insn.rs1())
-#define RS2 READ_REG(insn.rs2())
+
+// regsw edits
+
+#define RS1_BANK STATE.regsw_bank_rs1
+#define RS2_BANK STATE.regsw_bank_rs2
+#define RD_BANK STATE.regsw_bank_rd
+#define REGSW_C STATE.regsw_c
+
+#define RS1 READ_REG(insn.rs1() + RS1_BANK*32 )
+#define RS2 READ_REG(insn.rs2() + RS2_BANK*32)
 #define RS3 READ_REG(insn.rs3())
-#define WRITE_RD(value) WRITE_REG(insn.rd(), value)
+#define WRITE_RD(value) WRITE_REG(insn.rd()+RD_BANK*32, value)
+
+#define REG_SWITCH ({RS1_BANK = insn.rs1(); \
+                     RS2_BANK = insn.rs2(); \
+                     RD_BANK = insn.rd();})
+
+#define UPDATE_REGSW_C ({STATE.regsw_c = insn.rs1() << 16 | insn.rs2() << 11 | (insn.s_imm() & 0x7FF);\
+                        STATE.regsw_mask = 0;});
+
+
+
+// regsw edits
+
 
 #ifndef RISCV_ENABLE_COMMITLOG
 # define WRITE_REG(reg, value) STATE.XPR.write(reg, value)

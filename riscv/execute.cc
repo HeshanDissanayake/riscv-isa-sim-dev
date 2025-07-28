@@ -172,6 +172,22 @@ inline void processor_t::update_histogram(reg_t pc)
 // function calls.
 static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
 {
+
+
+  reg_t regsw_c = p->get_state()->regsw_c;
+  reg_t regsw_mask = p->get_state()->regsw_mask;
+
+  if(regsw_mask == 7){
+    p->get_state()->regsw_c = 0;
+    p->get_state()->regsw_mask = 0;
+  }
+
+  p->get_state()->regsw_bank_rd =  (regsw_c >> (20 - regsw_mask * 3 )) & 0x1; ;
+  p->get_state()->regsw_bank_rs1 = (regsw_c >> (20 - regsw_mask * 3 -1))  & 0x1;
+  p->get_state()->regsw_bank_rs2 = (regsw_c >> (20 - regsw_mask * 3 -2)) & 0x1;
+
+  regsw_mask = p->get_state()->regsw_mask++;
+
   commit_log_reset(p);
   commit_log_stash_privilege(p);
   reg_t npc;

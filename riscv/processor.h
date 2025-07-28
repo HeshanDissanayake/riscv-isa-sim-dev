@@ -217,11 +217,19 @@ struct state_t
   uint32_t frm;
   bool serialized; // whether timer CSRs are in a well-defined state
 
-  reg_t regsw;
+  // regsw edits
+  reg_t regsw_c;
   reg_t regsw_mask;
 
-  reg_t eregsw;
+  reg_t eregsw_c;
   reg_t eregsw_mask;
+
+  reg_t regsw_bank_rs1;
+  reg_t regsw_bank_rs2;
+  reg_t regsw_bank_rd;
+
+  //regsw edits
+  
   
   // When true, execute a single instruction and then enter debug mode.  This
   // can only be set by executing dret.
