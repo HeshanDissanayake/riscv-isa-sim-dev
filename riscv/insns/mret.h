@@ -11,3 +11,14 @@ s = set_field(s, MSTATUS_MPP, PRV_U);
 p->set_csr(CSR_MSTATUS, s);
 p->set_privilege(prev_prv);
 p->set_virt(prev_virt);
+
+// regsw edits - STARTS
+STATE.regsw_enable = STATE.eregsw_enable;
+STATE.eregsw_enable = 0;
+
+
+if(p->debug_trigger && p->in_exception ){
+  fprintf(p->get_log_file(),"------------ Mret from exception \n");
+  p->in_exception = false;
+  p->post_exp_cycles = POST_EXP_CYCLES;
+}

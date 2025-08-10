@@ -3076,6 +3076,7 @@
 #define CSR_MHPMCOUNTER30H 0xb9e
 #define CSR_MHPMCOUNTER31H 0xb9f
 
+// regsw edits
 #define CSR_REGSW_C 0x800
 #define CSR_EREGSW_C 0x801
 
@@ -3087,6 +3088,7 @@
 #define CSR_RS2_BANK 0x805
 #define CSR_RD_BANK 0x806
 
+#define CSR_DEBUG 0x808
 
 #define CAUSE_MISALIGNED_FETCH 0x0
 #define CAUSE_FETCH_ACCESS 0x1

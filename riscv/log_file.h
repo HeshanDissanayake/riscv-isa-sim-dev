@@ -26,6 +26,7 @@ public:
           << strerror (errno);
       throw std::runtime_error(oss.str());
     }
+    printf("file created %s\n", path);
   }
 
   FILE *get() { return wrapped_file ? wrapped_file.get() : stderr; }

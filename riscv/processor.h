@@ -15,6 +15,7 @@
 #include "entropy_source.h"
 
 
+
 class processor_t;
 class mmu_t;
 typedef reg_t (*insn_func_t)(processor_t*, insn_t, reg_t);
@@ -22,6 +23,34 @@ class simif_t;
 class trap_t;
 class extension_t;
 class disassembler_t;
+
+
+//regsw edits
+#define BUFFER_SIZE 25
+#define MAX_LOG_LEN 25  // Max characters per log line
+#define POST_EXP_CYCLES 25
+ 
+// regsw edits
+typedef struct{
+  uint64_t d_cycles;
+  uint32_t id;
+  reg_t pc;
+  uint64_t bits;
+  insn_t insn;
+  reg_t cycles;
+  reg_t regsw_c;
+  reg_t regsw_mask;
+  reg_t regsw_bank_rd;  
+  reg_t regsw_bank_rs1;
+  reg_t regsw_bank_rs2;
+}debug_entry_t;
+
+typedef struct {
+    debug_entry_t* entries[BUFFER_SIZE]; // Pointers to strings
+    int start;
+    int count;
+} StringBuffer;
+
 
 struct insn_desc_t
 {
@@ -217,10 +246,13 @@ struct state_t
   uint32_t frm;
   bool serialized; // whether timer CSRs are in a well-defined state
 
-  // regsw edits
+ 
+
+  reg_t regsw_enable;
   reg_t regsw_c;
   reg_t regsw_mask;
 
+  reg_t eregsw_enable;
   reg_t eregsw_c;
   reg_t eregsw_mask;
 
@@ -348,6 +380,15 @@ public:
 
   // When true, display disassembly of each instruction that's executed.
   bool debug;
+
+  // used for custom debug mode
+  // regsw edits
+  StringBuffer pre_exp_buffer;
+  bool debug_trigger;
+  bool in_exception;
+  uint64_t post_exp_cycles;
+  uint64_t cycles;
+
   // When true, take the slow simulation path.
   bool slow_path();
   bool halted() { return state.debug_mode; }
@@ -459,6 +500,7 @@ private:
   bool histogram_enabled;
   bool log_commits_enabled;
   FILE *log_file;
+  FILE *debug_log_file;
   bool halt_on_reset;
   std::vector<bool> extension_table;
   std::vector<bool> impl_table;
@@ -471,6 +513,8 @@ private:
   static const size_t OPCODE_CACHE_SIZE = 8191;
   insn_desc_t opcode_cache[OPCODE_CACHE_SIZE];
 
+  //regsw edits
+  void print_pre_exp_log();
   void take_pending_interrupt() { take_interrupt(state.mip & state.mie); }
   void take_interrupt(reg_t mask); // take first enabled interrupt in mask
   void take_trap(trap_t& t, reg_t epc); // take an exception

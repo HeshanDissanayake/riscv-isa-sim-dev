@@ -197,7 +197,8 @@ private:
                      RD_BANK = insn.rd();})
 
 #define UPDATE_REGSW_C ({STATE.regsw_c = insn.rs1() << 16 | insn.rs2() << 11 | (insn.s_imm() & 0x7FF);\
-                        STATE.regsw_mask = 0;});
+                        STATE.regsw_mask = 0; \
+                        STATE.regsw_enable = 1;});
 
 
 

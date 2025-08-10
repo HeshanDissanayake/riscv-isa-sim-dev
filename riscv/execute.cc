@@ -5,6 +5,8 @@
 #include "disasm.h"
 #include <cassert>
 
+#define zext(x, pos) (((reg_t)(x) << (64-(pos))) >> (64-(pos)))
+
 #ifdef RISCV_ENABLE_COMMITLOG
 static void commit_log_reset(processor_t* p)
 {
@@ -173,20 +175,91 @@ inline void processor_t::update_histogram(reg_t pc)
 static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
 {
 
+  // regsw edits -START
 
+  p->cycles++;
   reg_t regsw_c = p->get_state()->regsw_c;
   reg_t regsw_mask = p->get_state()->regsw_mask;
 
   if(regsw_mask == 7){
     p->get_state()->regsw_c = 0;
     p->get_state()->regsw_mask = 0;
+    p->get_state()->regsw_enable = 0;
   }
 
-  p->get_state()->regsw_bank_rd =  (regsw_c >> (20 - regsw_mask * 3 )) & 0x1; ;
-  p->get_state()->regsw_bank_rs1 = (regsw_c >> (20 - regsw_mask * 3 -1))  & 0x1;
-  p->get_state()->regsw_bank_rs2 = (regsw_c >> (20 - regsw_mask * 3 -2)) & 0x1;
+  if(p->get_state()->regsw_enable){
+    p->get_state()->regsw_bank_rd =  (regsw_c >> (20 - regsw_mask * 3 ))   & 0x1;
+    p->get_state()->regsw_bank_rs1 = (regsw_c >> (20 - regsw_mask * 3 -1)) & 0x1;
+    p->get_state()->regsw_bank_rs2 = (regsw_c >> (20 - regsw_mask * 3 -2)) & 0x1;
+    regsw_mask = p->get_state()->regsw_mask++;
+    // printf("a0: %ld \n", p->get_state()->XPR[10]);
+  }else{
+    p->get_state()->regsw_bank_rd =  0;
+    p->get_state()->regsw_bank_rs1 = 0;
+    p->get_state()->regsw_bank_rs2 = 0;
+    
+  }
 
-  regsw_mask = p->get_state()->regsw_mask++;
+   debug_entry_t* entry;
+
+  int index = (p->pre_exp_buffer.start + p->pre_exp_buffer.count) % BUFFER_SIZE;
+
+      if (p->pre_exp_buffer.count == BUFFER_SIZE) {
+        // Buffer full: overwrite the oldest
+        
+        entry = p->pre_exp_buffer.entries[p->pre_exp_buffer.start];
+        // index = pre_exp_buffer.start;
+
+        p->pre_exp_buffer.start = (p->pre_exp_buffer.start + 1) % BUFFER_SIZE;
+    } else {
+        entry = (debug_entry_t*)malloc(sizeof(debug_entry_t));
+        index = (p->pre_exp_buffer.start + p->pre_exp_buffer.count) % BUFFER_SIZE;
+        p->pre_exp_buffer.entries[index] = entry;
+        p->pre_exp_buffer.count++;
+    }
+
+    entry->d_cycles = p->cycles;
+    entry->id = p->get_id();
+    entry->pc = p->get_state()->pc;
+    entry->bits = fetch.insn.bits();
+    entry->insn = fetch.insn;
+    entry->cycles = 0;
+    entry->regsw_c = p->get_state()->regsw_c;
+    entry->regsw_mask = p->get_state()->regsw_mask;
+    entry->regsw_bank_rd = p->get_state()->regsw_bank_rd;
+    entry->regsw_bank_rs1 = p->get_state()->regsw_bank_rs1;
+    entry->regsw_bank_rs2 = p->get_state()->regsw_bank_rs2;
+
+    
+    if(p->in_exception){
+      fprintf(p->get_log_file(), "in_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld | sp:%ld, tp:%ld, t6:%ld | eregsw_c %ld\n",
+            p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
+            p->get_disassembler()->disassemble(fetch.insn).c_str(),
+            p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4],  p->get_state()->XPR[31],  p->get_state()->eregsw_c);
+    }
+
+
+    if((p->post_exp_cycles !=0)){
+      
+      fprintf(p->get_log_file(), "post_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld\n | sp:%ld, tp:%ld\n",
+            p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
+            p->get_disassembler()->disassemble(fetch.insn).c_str(),
+            p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4]);
+
+      if(p->post_exp_cycles == 1){
+        fprintf(p->get_log_file(), "post_exp_cycles reached 0 \n\n\n");
+      }
+
+      if(p->post_exp_cycles != 0){
+        p->post_exp_cycles--;
+      }
+
+    }
+    
+
+
+
+  // regsw edits -END
 
   commit_log_reset(p);
   commit_log_stash_privilege(p);

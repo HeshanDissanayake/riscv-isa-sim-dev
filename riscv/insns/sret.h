@@ -20,3 +20,14 @@ if (!STATE.v) {
   reg_t prev_virt = get_field(STATE.hstatus, HSTATUS_SPV);
   p->set_virt(prev_virt);
 }
+
+// regsw edits - STARTS
+STATE.regsw_enable = STATE.eregsw_enable;
+STATE.eregsw_enable = 0;
+
+if(p->debug_trigger && p->in_exception ){
+  fprintf(p->get_log_file(), "------------ Sret from exception \n");
+  p->in_exception = false;
+  p->post_exp_cycles = POST_EXP_CYCLES;
+}
+// regsw edits - ENDS

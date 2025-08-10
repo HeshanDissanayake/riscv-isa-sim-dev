@@ -1,5 +1,6 @@
 // See LICENSE for license details.
 
+
 #include "arith.h"
 #include "processor.h"
 #include "extension.h"
@@ -19,6 +20,9 @@
 #include <string>
 #include <algorithm>
 
+
+
+
 #undef STATE
 #define STATE state
 
@@ -31,6 +35,12 @@ processor_t::processor_t(const char* isa, const char* priv, const char* varch,
   extension_table(256, false), impl_table(256, false), last_pc(1), executions(1)
 {
   VU.p = this;
+
+//regsw edits - START
+  pre_exp_buffer.start = 0;
+  pre_exp_buffer.count = 0;
+  for (int i = 0; i < BUFFER_SIZE; i++) pre_exp_buffer.entries[i] = NULL;
+//regsw edits - ENDS
 
   parse_isa_string(isa);
   parse_priv_string(priv);
@@ -681,15 +691,47 @@ void processor_t::enter_debug_mode(uint8_t cause)
   state.pc = DEBUG_ROM_ENTRY;
 }
 
+void processor_t::print_pre_exp_log(){
+  
+  int print_id = 0;
+  for(int i = 0; i<pre_exp_buffer.count; i++){
+    print_id = (pre_exp_buffer.start + i ) % BUFFER_SIZE;
+    // printf(" pid %d\n", print_id);
+    debug_entry_t d_entry = *pre_exp_buffer.entries[print_id];
+
+    
+     fprintf(log_file, "pre_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld | sp: %ld, tp: %ld\n",
+            d_entry.d_cycles, d_entry.id, max_xlen/4, zext(d_entry.pc, max_xlen), d_entry.bits,
+            disassembler->disassemble(d_entry.insn).c_str(),
+            d_entry.regsw_c, d_entry.regsw_mask, d_entry.regsw_bank_rd, d_entry.regsw_bank_rs1, d_entry.regsw_bank_rs2,  state.XPR[2], state.XPR[4]);
+     
+  }
+}
+
+
 void processor_t::take_trap(trap_t& t, reg_t epc)
-{
-  if (debug) {
-    fprintf(log_file, "core %3d: exception %s, epc 0x%0*" PRIx64 "\n",
-            id, t.name(), max_xlen/4, zext(epc, max_xlen));
+{  
+    
+  //regsw edits - STARTS
+  state.eregsw_c = state.regsw_c;
+  state.eregsw_mask = state.regsw_mask;
+  state.eregsw_enable = state.regsw_enable;
+  state.regsw_c = 0;
+  state.regsw_mask = 0;
+  state.regsw_enable = 0;
+  if (debug_trigger) {
+    fprintf(log_file,"\n\n\n");
+    print_pre_exp_log();
+    fprintf(log_file, "🛑🛑 cycle:%08ld core %3d: exception %s, epc 0x%0*" PRIx64 " eregsw_c: %ld, emask: %ld\n",
+            cycles, id, t.name(), max_xlen/4, zext(epc, max_xlen), state.eregsw_c, state.eregsw_mask);
+    
     if (t.has_tval())
       fprintf(log_file, "core %3d:           tval 0x%0*" PRIx64 "\n",
               id, max_xlen/4, zext(t.get_tval(), max_xlen));
+    in_exception = true;
+    post_exp_cycles = 0;
   }
+ 
 
   if (state.debug_mode) {
     if (t.cause() == CAUSE_BREAKPOINT) {
@@ -707,6 +749,8 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     enter_debug_mode(DCSR_CAUSE_SWBP);
     return;
   }
+
+ 
 
   // By default, trap to M-mode, unless delegated to HS-mode or VS-mode
   reg_t vsdeleg, hsdeleg;
@@ -737,20 +781,13 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     set_privilege(PRV_S);
   } else if (state.prv <= PRV_S && bit < max_xlen && ((hsdeleg >> bit) & 1)) {
     // Handle the trap in HS-mode
-    
-    //regsw edits
-    state.eregsw_c = state.regsw_c;
-    state.eregsw_mask = state.regsw_mask;
-    state.regsw_c = 0;
-    state.regsw_mask = 0;
-    //regsw edits
-
+  
 
     set_virt(false);
     reg_t vector = (state.stvec & 1) && interrupt ? 4*bit : 0;
     state.pc = (state.stvec & ~(reg_t)1) + vector;
     state.scause = t.cause();
-    state.sepc = epc;
+    state.sepc = epc;  
     state.stval = t.get_tval();
     state.htval = t.get_tval2();
     state.htinst = t.get_tinst();
@@ -763,7 +800,7 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     s = state.hstatus;
     if (curr_virt)
       s = set_field(s, HSTATUS_SPVP, state.prv);
-    s = set_field(s, HSTATUS_SPV, curr_virt);
+    s = set_field(s, HSTATUS_SPV, curr_virt); 
     s = set_field(s, HSTATUS_GVA, t.has_gva());
     set_csr(CSR_HSTATUS, s);
     set_privilege(PRV_S);
@@ -801,14 +838,66 @@ void processor_t::disasm(insn_t insn)
       fprintf(log_file, "core %3d: >>>>  %s\n", id, sym);
     }
 #endif
-
-    if (executions != 1) {
+    
+    if (executions != 1 ) {
       fprintf(log_file, "core %3d: Executed %" PRIx64 " times\n", id, executions);
     }
+    
+    // debug_entry_t* entry;
 
-    fprintf(log_file, "core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %s\n",
-            id, max_xlen/4, zext(state.pc, max_xlen), bits,
-            disassembler->disassemble(insn).c_str());
+    // int index = (pre_exp_buffer.start + pre_exp_buffer.count) % BUFFER_SIZE;
+
+    //   if (pre_exp_buffer.count == BUFFER_SIZE) {
+    //     // Buffer full: overwrite the oldest
+        
+    //     entry = pre_exp_buffer.entries[pre_exp_buffer.start];
+    //     // index = pre_exp_buffer.start;
+
+    //     pre_exp_buffer.start = (pre_exp_buffer.start + 1) % BUFFER_SIZE;
+    // } else {
+    //     entry = (debug_entry_t*)malloc(sizeof(debug_entry_t));
+    //     index = (pre_exp_buffer.start + pre_exp_buffer.count) % BUFFER_SIZE;
+    //     pre_exp_buffer.entries[index] = entry;
+        
+    //     pre_exp_buffer.count++;
+    // }
+
+    // entry->d_cycles = cycles;
+    // entry->id = id;
+    // entry->pc = state.pc;
+    // entry->bits = bits;
+    // entry->insn = insn;
+    // entry->cycles = 0;
+    // entry->regsw_c = state.regsw_c;
+    // entry->regsw_mask = state.regsw_mask;
+    // entry->regsw_bank_rd = state.regsw_bank_rd;
+    // entry->regsw_bank_rs1 = state.regsw_bank_rs1;
+    // entry->regsw_bank_rs2 = state.regsw_bank_rs2;
+
+    
+    // if(in_exception | (post_exp_cycles !=0)){
+      
+    //   fprintf(log_file, "post_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld\n",
+    //         cycles, id, max_xlen/4, zext(state.pc, max_xlen), bits,
+    //         disassembler->disassemble(insn).c_str(),
+    //         state.regsw_c, state.regsw_mask, state.regsw_bank_rd, state.regsw_bank_rs1, state.regsw_bank_rs2);
+
+    //   // fprintf(log_file, "core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %s\n",
+    //   //       id, max_xlen/4, zext(state.pc, max_xlen), bits,
+    //   //       disassembler->disassemble(insn).c_str());
+
+    //   if(post_exp_cycles == 1){
+    //     fprintf(log_file, "post_exp_cycles reached 0 \n\n\n");
+    //   }
+
+    //   if(post_exp_cycles != 0){
+    //     post_exp_cycles--;
+       
+    //   }
+
+      
+    // }
+
     last_pc = state.pc;
     last_bits = bits;
     executions = 1;
@@ -911,7 +1000,7 @@ void processor_t::set_csr(int which, reg_t val)
     }
     mmu->flush_tlb();
   }
-
+  
   switch (which)
   {
     case CSR_MENTROPY:
@@ -1330,7 +1419,10 @@ void processor_t::set_csr(int which, reg_t val)
     case CSR_REGSW_MASK:
       state.regsw_mask = val;
       break;
-
+    case CSR_DEBUG:
+      debug_trigger = val;
+      // printf("trigger - %d\n", (int)debug_trigger);
+      break;
   }
 
 #if defined(RISCV_ENABLE_COMMITLOG)
@@ -1792,7 +1884,10 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
     
     case CSR_RD_BANK:
       ret(state.regsw_bank_rd);
-      
+
+    case CSR_DEBUG:
+      ret(debug_trigger);
+
   }
 
 #undef ret
