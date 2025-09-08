@@ -24,10 +24,16 @@ if (!STATE.v) {
 // regsw edits - STARTS
 STATE.regsw_enable = STATE.eregsw_enable;
 STATE.eregsw_enable = 0;
+// STATE.regsw_mask++;
 
-if(p->debug_trigger && p->in_exception ){
-  fprintf(p->get_log_file(), "------------ Sret from exception \n");
-  p->in_exception = false;
-  p->post_exp_cycles = POST_EXP_CYCLES;
+if(STATE.regsw_c !=0){
+  STATE.regsw_enable = 1;
 }
+
+
+// if(p->debug_trigger && p->in_exception ){
+//   fprintf(p->get_log_file(), "------------ Sret from exception \n");
+//   p->in_exception = false;
+//   p->post_exp_cycles = POST_EXP_CYCLES;
+// }
 // regsw edits - ENDS

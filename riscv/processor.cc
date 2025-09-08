@@ -40,8 +40,10 @@ processor_t::processor_t(const char* isa, const char* priv, const char* varch,
   pre_exp_buffer.start = 0;
   pre_exp_buffer.count = 0;
   for (int i = 0; i < BUFFER_SIZE; i++) pre_exp_buffer.entries[i] = NULL;
+
 //regsw edits - ENDS
 
+  
   parse_isa_string(isa);
   parse_priv_string(priv);
   parse_varch_string(varch);
@@ -681,6 +683,7 @@ void processor_t::set_virt(bool virt)
   }
 }
 
+
 void processor_t::enter_debug_mode(uint8_t cause)
 {
   state.debug_mode = true;
@@ -690,6 +693,40 @@ void processor_t::enter_debug_mode(uint8_t cause)
   state.dpc = state.pc;
   state.pc = DEBUG_ROM_ENTRY;
 }
+
+void processor_t::update_regsw_cache(reg_t pc){
+  for(int i=0; i<REGSW_CACHE_SIZE; i++){
+    // printf("cache:%ld lookup:%ld\n" ,regsw_cache.cache[i], pc );
+    if (regsw_cache.cache[i] == pc) {
+      regsw_cache.hits++;
+      return; // hit
+    }
+  }
+  
+  regsw_cache.index++;
+  regsw_cache.index = regsw_cache.index % REGSW_CACHE_SIZE;
+  regsw_cache.cache[regsw_cache.index] = pc;
+  regsw_cache.misses++;
+}
+
+ void processor_t::reset_regsw_cache(){
+  for(int i = 0; i<REGSW_CACHE_SIZE; i++){
+    regsw_cache.cache[i] = 0;
+  }
+  regsw_cache.index = 0;
+  regsw_cache.hits = 0;
+  regsw_cache.misses = 0;
+
+ }
+
+ void processor_t::reset_isnt_counter(){
+
+  inst_counter.li_count = 0;
+  inst_counter.lw_count = 0;
+  inst_counter.ld_count = 0;
+  inst_counter.sd_count = 0;
+  inst_counter.sw_count = 0;
+ }
 
 void processor_t::print_pre_exp_log(){
   
@@ -719,6 +756,7 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
   state.regsw_c = 0;
   state.regsw_mask = 0;
   state.regsw_enable = 0;
+
   if (debug_trigger) {
     fprintf(log_file,"\n\n\n");
     print_pre_exp_log();
@@ -732,7 +770,6 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     post_exp_cycles = 0;
   }
  
-
   if (state.debug_mode) {
     if (t.cause() == CAUSE_BREAKPOINT) {
       state.pc = DEBUG_ROM_ENTRY;
@@ -767,6 +804,9 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
   }
   if (state.prv <= PRV_S && bit < max_xlen && ((vsdeleg >> bit) & 1)) {
     // Handle the trap in VS-mode
+    // fprintf(log_file, "🛑🛑 VS mode\n");
+    if(state.eregsw_mask!=0) state.eregsw_mask--;
+
     reg_t vector = (state.vstvec & 1) && interrupt ? 4*bit : 0;
     state.pc = (state.vstvec & ~(reg_t)1) + vector;
     state.vscause = (interrupt) ? (t.cause() - 1) : t.cause();
@@ -781,7 +821,10 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
     set_privilege(PRV_S);
   } else if (state.prv <= PRV_S && bit < max_xlen && ((hsdeleg >> bit) & 1)) {
     // Handle the trap in HS-mode
-  
+    // fprintf(log_file, "🛑🛑 HS mode, interrupt:%d \n", interrupt);
+    if(!interrupt && state.eregsw_mask!=0){
+      state.eregsw_mask--;
+    }
 
     set_virt(false);
     reg_t vector = (state.stvec & 1) && interrupt ? 4*bit : 0;
@@ -1413,6 +1456,7 @@ void processor_t::set_csr(int which, reg_t val)
       dirty_vs_state;
       VU.vxrm = val & 0x3ul;
       break;
+
     case CSR_REGSW_C:
       state.regsw_c = val;
       break;
@@ -1423,6 +1467,25 @@ void processor_t::set_csr(int which, reg_t val)
       debug_trigger = val;
       // printf("trigger - %d\n", (int)debug_trigger);
       break;
+    case CSR_CONTEXT_IN:
+      if(debug_trigger){
+        fprintf(log_file,"\n\n\n");
+        print_pre_exp_log();
+        fprintf(log_file, "🛑🛑🛑🛑🛑🛑 IN - context switch || regsw_c: %ld, mask: %ld\n", state.regsw_c, state.regsw_mask);
+        in_context_sw = 1;
+        post_exp_cycles = 0;
+      }
+      break;
+    
+    case CSR_CONTEXT_OUT:
+      if(debug_trigger){
+        fprintf(log_file, "🛑🛑🛑🛑🛑🛑 OUT - context switch || regsw_c: %ld, mask: %ld\n", state.regsw_c, state.regsw_mask);
+        in_context_sw = 0;
+        post_exp_cycles = 20;
+      }
+      break;
+
+
   }
 
 #if defined(RISCV_ENABLE_COMMITLOG)
@@ -1860,6 +1923,9 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
       if (!supports_extension('V'))
         break;
       ret(VU.vlenb);
+
+   
+
     case CSR_REGSW_C:
       ret(state.regsw_c);
 
@@ -1887,6 +1953,36 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
 
     case CSR_DEBUG:
       ret(debug_trigger);
+
+    case CSR_CONTEXT_IN:
+      ret(in_context_sw);
+    
+    case CSR_CONTEXT_OUT:
+      ret(in_context_sw);
+
+    case CSR_READ_PERF_CLEAR:{
+      reset_regsw_cache();
+      reset_isnt_counter();
+      ret(0);
+    }
+    case CSR_READ_REGSW_C_HITS:
+      ret(regsw_cache.hits);
+
+    case CSR_READ_REGSW_C_MISSES:
+      ret(regsw_cache.misses);
+
+    case CSR_READ_CYCLES:
+      ret(cycles);
+    case CSR_READ_LI:
+      ret(inst_counter.li_count);
+    case CSR_READ_LW:
+      ret(inst_counter.lw_count);
+    case CSR_READ_LD:
+      ret(inst_counter.ld_count);
+    case CSR_READ_SW:
+      ret(inst_counter.sw_count);
+    case CSR_READ_SD:
+      ret(inst_counter.sd_count);
 
   }
 

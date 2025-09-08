@@ -14,8 +14,6 @@
 #include "debug_rom_defines.h"
 #include "entropy_source.h"
 
-
-
 class processor_t;
 class mmu_t;
 typedef reg_t (*insn_func_t)(processor_t*, insn_t, reg_t);
@@ -26,9 +24,10 @@ class disassembler_t;
 
 
 //regsw edits
-#define BUFFER_SIZE 25
+#define BUFFER_SIZE 10
 #define MAX_LOG_LEN 25  // Max characters per log line
-#define POST_EXP_CYCLES 25
+#define POST_EXP_CYCLES 10
+#define REGSW_CACHE_SIZE 64
  
 // regsw edits
 typedef struct{
@@ -51,6 +50,22 @@ typedef struct {
     int count;
 } StringBuffer;
 
+typedef struct{
+  reg_t cache[REGSW_CACHE_SIZE];
+  reg_t index;
+  reg_t hits;
+  reg_t misses;
+
+} Regsw_cache;
+
+typedef struct{
+  reg_t li_count;
+  reg_t lw_count;
+  reg_t ld_count;
+  reg_t sd_count;
+  reg_t sw_count;
+
+} Inst_counter;
 
 struct insn_desc_t
 {
@@ -247,7 +262,6 @@ struct state_t
   bool serialized; // whether timer CSRs are in a well-defined state
 
  
-
   reg_t regsw_enable;
   reg_t regsw_c;
   reg_t regsw_mask;
@@ -313,6 +327,8 @@ static int cto(reg_t val)
   return res;
 }
 
+
+
 // this class represents one processor in a RISC-V machine.
 class processor_t : public abstract_device_t
 {
@@ -321,6 +337,12 @@ public:
               simif_t* sim, uint32_t id, bool halt_on_reset,
               FILE *log_file);
   ~processor_t();
+
+
+  //regsw edits
+  void update_regsw_cache(reg_t pc);
+  void reset_regsw_cache();
+  void reset_isnt_counter();
 
   void set_debug(bool value);
   void set_histogram(bool value);
@@ -386,8 +408,16 @@ public:
   StringBuffer pre_exp_buffer;
   bool debug_trigger;
   bool in_exception;
+
+  bool in_context_sw;
+  bool out_context_sw;
+
   uint64_t post_exp_cycles;
   uint64_t cycles;
+
+  Regsw_cache regsw_cache;
+  Inst_counter inst_counter;
+  
 
   // When true, take the slow simulation path.
   bool slow_path();

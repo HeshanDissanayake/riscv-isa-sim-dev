@@ -176,7 +176,6 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
 {
 
   // regsw edits -START
-
   p->cycles++;
   reg_t regsw_c = p->get_state()->regsw_c;
   reg_t regsw_mask = p->get_state()->regsw_mask;
@@ -191,7 +190,6 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
     p->get_state()->regsw_bank_rd =  (regsw_c >> (20 - regsw_mask * 3 ))   & 0x1;
     p->get_state()->regsw_bank_rs1 = (regsw_c >> (20 - regsw_mask * 3 -1)) & 0x1;
     p->get_state()->regsw_bank_rs2 = (regsw_c >> (20 - regsw_mask * 3 -2)) & 0x1;
-    regsw_mask = p->get_state()->regsw_mask++;
     // printf("a0: %ld \n", p->get_state()->XPR[10]);
   }else{
     p->get_state()->regsw_bank_rd =  0;
@@ -231,32 +229,53 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
     entry->regsw_bank_rs2 = p->get_state()->regsw_bank_rs2;
 
     
-    if(p->in_exception){
-      fprintf(p->get_log_file(), "in_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld | sp:%ld, tp:%ld, t6:%ld | eregsw_c %ld\n",
-            p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
-            p->get_disassembler()->disassemble(fetch.insn).c_str(),
-            p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4],  p->get_state()->XPR[31],  p->get_state()->eregsw_c);
-    }
+    // if(p->in_exception){
+    //   fprintf(p->get_log_file(), "in_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld | sp:%ld, tp:%ld, t6:%ld | eregsw_c %ld\n",
+    //         p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
+    //         p->get_disassembler()->disassemble(fetch.insn).c_str(),
+    //         p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4],  p->get_state()->XPR[31],  p->get_state()->eregsw_c);
+    // }
 
 
-    if((p->post_exp_cycles !=0)){
+    // if((p->post_exp_cycles !=0)){
       
-      fprintf(p->get_log_file(), "post_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld\n | sp:%ld, tp:%ld\n",
+    //   fprintf(p->get_log_file(), "post_exp---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld\n | sp:%ld, tp:%ld\n",
+    //         p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
+    //         p->get_disassembler()->disassemble(fetch.insn).c_str(),
+    //         p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4]);
+
+    //   if(p->post_exp_cycles == 1){
+    //     fprintf(p->get_log_file(), "post_exp_cycles reached 0 \n\n\n");
+    //   }
+
+    //   if(p->post_exp_cycles != 0){
+    //     p->post_exp_cycles--;
+    //   }
+
+    // }
+    if(p->debug_trigger){
+      if(p->in_context_sw){
+        fprintf(p->get_log_file(), "in_context_sw ---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld | sp:%ld, tp:%ld, t6:%ld | eregsw_c %ld\n",
+              p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
+              p->get_disassembler()->disassemble(fetch.insn).c_str(),
+              p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4],  p->get_state()->XPR[31],  p->get_state()->eregsw_c);
+      }else if(p->post_exp_cycles !=0){
+        fprintf(p->get_log_file(), "post_context_sw ---- cycle:%08ld core %3d: 0x%0*" PRIx64 " (0x%08" PRIx64 ") %-25.25s  || config:%ld mask:%ld  | banks --> rd:%ld rs1:%ld rs2:%ld | sp:%ld, tp:%ld\n",
             p->cycles, p->get_id(), p->get_max_xlen() /4, zext(p->get_state()->pc, p->get_max_xlen()), fetch.insn.bits(),
             p->get_disassembler()->disassemble(fetch.insn).c_str(),
             p->get_state()->regsw_c, p->get_state()->regsw_mask, p->get_state()->regsw_bank_rd, p->get_state()->regsw_bank_rs1, p->get_state()->regsw_bank_rs2,  p->get_state()->XPR[2], p->get_state()->XPR[4]);
-
-      if(p->post_exp_cycles == 1){
-        fprintf(p->get_log_file(), "post_exp_cycles reached 0 \n\n\n");
+      
+        if(p->post_exp_cycles == 1){
+          fprintf(p->get_log_file(), "post_exp_cycles reached 0 \n\n\n");
+        }
+      
+        p->post_exp_cycles--; 
       }
-
-      if(p->post_exp_cycles != 0){
-        p->post_exp_cycles--;
-      }
-
     }
-    
 
+  if(p->get_state()->regsw_enable){
+    p->get_state()->regsw_mask++;
+  }
 
 
   // regsw edits -END

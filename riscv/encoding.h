@@ -3077,7 +3077,8 @@
 #define CSR_MHPMCOUNTER31H 0xb9f
 
 // regsw edits
-#define CSR_REGSW_C 0x800
+
+#define CSR_REGSW_C 0x80e
 #define CSR_EREGSW_C 0x801
 
 #define CSR_REGSW_MASK 0x802
@@ -3089,6 +3090,20 @@
 #define CSR_RD_BANK 0x806
 
 #define CSR_DEBUG 0x808
+#define CSR_CONTEXT_IN 0x809
+#define CSR_CONTEXT_OUT 0x80a
+
+#define CSR_READ_REGSW_C_HITS 0x80b
+#define CSR_READ_REGSW_C_MISSES 0x80c
+#define CSR_READ_PERF_CLEAR 0x80d
+
+#define CSR_READ_CYCLES 0x814
+#define CSR_READ_LI  0x80f 
+#define CSR_READ_LW  0x810
+#define CSR_READ_LD  0x811
+#define CSR_READ_SW  0x812
+#define CSR_READ_SD  0x813
+// >>>
 
 #define CAUSE_MISALIGNED_FETCH 0x0
 #define CAUSE_FETCH_ACCESS 0x1
