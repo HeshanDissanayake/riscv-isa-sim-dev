@@ -143,7 +143,14 @@ bool mmu_t::mmio_store(reg_t addr, size_t len, const uint8_t* bytes)
 }
 
 void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate_flags)
-{
+{ 
+
+ if(proc){
+     if(proc->memtrace_dump_enable){
+      printf("r 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
+      }
+ }
+
   reg_t paddr = translate(addr, len, LOAD, xlate_flags);
 
   if (auto host_addr = sim->addr_to_mem(paddr)) {
@@ -165,7 +172,13 @@ void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate
 }
 
 void mmu_t::store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, uint32_t xlate_flags)
-{
+{ 
+  if(proc){
+     if(proc->memtrace_dump_enable){
+      printf("w 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
+    }
+  }
+
   reg_t paddr = translate(addr, len, STORE, xlate_flags);
 
   if (!matched_trigger) {

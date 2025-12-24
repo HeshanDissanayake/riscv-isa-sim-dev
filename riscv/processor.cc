@@ -1485,7 +1485,10 @@ void processor_t::set_csr(int which, reg_t val)
       }
       break;
 
-
+    case CSR_MEM_DUMP:
+      memtrace_dump_enable = val;
+      break;
+      
   }
 
 #if defined(RISCV_ENABLE_COMMITLOG)
@@ -1983,6 +1986,9 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
       ret(inst_counter.sw_count);
     case CSR_READ_SD:
       ret(inst_counter.sd_count);
+
+    case CSR_MEM_DUMP:
+      ret(memtrace_dump_enable);
 
   }
 

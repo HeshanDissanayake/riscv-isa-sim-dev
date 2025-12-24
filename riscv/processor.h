@@ -27,7 +27,7 @@ class disassembler_t;
 #define BUFFER_SIZE 10
 #define MAX_LOG_LEN 25  // Max characters per log line
 #define POST_EXP_CYCLES 10
-#define REGSW_CACHE_SIZE 64
+#define REGSW_CACHE_SIZE 32
  
 // regsw edits
 typedef struct{
@@ -407,6 +407,9 @@ public:
   // regsw edits
   StringBuffer pre_exp_buffer;
   bool debug_trigger;
+  bool memtrace_dump_enable;
+  
+
   bool in_exception;
 
   bool in_context_sw;
@@ -530,7 +533,7 @@ private:
   bool histogram_enabled;
   bool log_commits_enabled;
   FILE *log_file;
-  FILE *debug_log_file;
+  FILE *memtrace_file;
   bool halt_on_reset;
   std::vector<bool> extension_table;
   std::vector<bool> impl_table;

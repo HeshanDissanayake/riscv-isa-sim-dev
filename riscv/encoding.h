@@ -3103,6 +3103,8 @@
 #define CSR_READ_LD  0x811
 #define CSR_READ_SW  0x812
 #define CSR_READ_SD  0x813
+
+#define CSR_MEM_DUMP 0x815
 // >>>
 
 #define CAUSE_MISALIGNED_FETCH 0x0
