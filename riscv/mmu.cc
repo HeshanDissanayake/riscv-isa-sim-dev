@@ -146,8 +146,8 @@ void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate
 { 
 
  if(proc){
-     if(proc->memtrace_dump_enable){
-      printf("r 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
+     if(proc->memtrace_dump_enable == true){
+      fprintf(proc->get_memtrace_file(), "r 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
       }
  }
 
@@ -174,8 +174,8 @@ void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate
 void mmu_t::store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, uint32_t xlate_flags)
 { 
   if(proc){
-     if(proc->memtrace_dump_enable){
-      printf("w 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
+     if(proc->memtrace_dump_enable == true){
+      fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
     }
   }
 

@@ -29,7 +29,7 @@ public:
         reg_t start_pc, std::vector<std::pair<reg_t, mem_t*>> mems,
         std::vector<std::pair<reg_t, abstract_device_t*>> plugin_devices,
         const std::vector<std::string>& args, const std::vector<int> hartids,
-        const debug_module_config_t &dm_config, const char *log_path,
+        const debug_module_config_t &dm_config, const char *log_path, const char *memtrace_path,
         bool dtb_enabled, const char *dtb_file);
   ~sim_t();
 
@@ -74,6 +74,7 @@ private:
   std::unique_ptr<clint_t> clint;
   bus_t bus;
   log_file_t log_file;
+  log_file_t memtrace_file;
 
   processor_t* get_core(const std::string& i);
   void step(size_t n); // step through simulation

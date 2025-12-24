@@ -335,7 +335,7 @@ class processor_t : public abstract_device_t
 public:
   processor_t(const char* isa, const char* priv, const char* varch,
               simif_t* sim, uint32_t id, bool halt_on_reset,
-              FILE *log_file);
+              FILE *log_file, FILE *memtrace_file);
   ~processor_t();
 
 
@@ -392,6 +392,7 @@ public:
   const disassembler_t* get_disassembler() { return disassembler; }
 
   FILE *get_log_file() { return log_file; }
+  FILE *get_memtrace_file() { return memtrace_file; }
 
   void register_insn(insn_desc_t);
   void register_extension(extension_t*);
