@@ -3105,6 +3105,7 @@
 #define CSR_READ_SD  0x813
 
 #define CSR_MEM_DUMP 0x815
+#define CSR_LOG_MARKER 0x816
 // >>>
 
 #define CAUSE_MISALIGNED_FETCH 0x0

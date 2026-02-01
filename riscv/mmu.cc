@@ -145,11 +145,11 @@ bool mmu_t::mmio_store(reg_t addr, size_t len, const uint8_t* bytes)
 void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate_flags)
 { 
 
- if(proc){
-     if(proc->memtrace_dump_enable == true){
-      fprintf(proc->get_memtrace_file(), "r 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
-      }
- }
+//  if(proc){
+//      if(proc->memtrace_dump_enable == true){
+//       fprintf(proc->get_memtrace_file(), "mmu.c r 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
+//       }
+//  }
 
   reg_t paddr = translate(addr, len, LOAD, xlate_flags);
 
@@ -173,11 +173,11 @@ void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate
 
 void mmu_t::store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, uint32_t xlate_flags)
 { 
-  if(proc){
-     if(proc->memtrace_dump_enable == true){
-      fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
-    }
-  }
+  // if(proc){
+  //    if(proc->memtrace_dump_enable == true){
+  //     fprintf(proc->get_memtrace_file(), "mmu.c w 0x%" PRIx64 " %zu\n", (uint64_t)addr, len);
+  //   }
+  // }
 
   reg_t paddr = translate(addr, len, STORE, xlate_flags);
 

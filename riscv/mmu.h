@@ -96,6 +96,13 @@ public:
   // template for functions that load an aligned value from memory
   #define load_func(type, prefix, xlate_flags) \
     inline type##_t prefix##_##type(reg_t addr, bool require_alignment = false) { \
+       \
+      if(proc){ \
+        if(proc->memtrace_dump_enable == true){ \
+          fprintf(proc->get_memtrace_file(), "r 0x%" PRIx64 " %zu\n", (uint64_t)addr, sizeof(type##_t));\
+        }\
+      } \
+      \
       if ((xlate_flags) != 0) \
         flush_tlb(); \
       if (unlikely(addr & (sizeof(type##_t)-1))) { \
@@ -162,6 +169,13 @@ public:
   // template for functions that store an aligned value to memory
   #define store_func(type, prefix, xlate_flags) \
     void prefix##_##type(reg_t addr, type##_t val) { \
+      \
+      if(proc){ \
+        if(proc->memtrace_dump_enable == true){ \
+          fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)addr, sizeof(type##_t));\
+        }\
+      } \
+      \
       if ((xlate_flags) != 0) \
         flush_tlb(); \
       if (unlikely(addr & (sizeof(type##_t)-1))) \

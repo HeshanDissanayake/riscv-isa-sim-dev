@@ -1487,6 +1487,11 @@ void processor_t::set_csr(int which, reg_t val)
 
     case CSR_MEM_DUMP:
       memtrace_dump_enable = val;
+      // printf("Memory trace dump %s %d\n", memtrace_dump_enable ? "enabled" : "disabled", val);
+      break;
+
+    case CSR_LOG_MARKER:
+      fprintf(memtrace_file, "LOG MARKER\n");
       break;
       
   }
@@ -1989,6 +1994,9 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
 
     case CSR_MEM_DUMP:
       ret(memtrace_dump_enable);
+    
+    case CSR_LOG_MARKER:
+      ret(0);
 
   }
 
