@@ -74,6 +74,8 @@ reg_t mmu_t::translate(reg_t addr, reg_t len, access_type type, uint32_t xlate_f
   reg_t paddr = walk(addr, type, mode, virt, mxr) | (addr & (PGSIZE-1));
   if (!pmp_ok(paddr, len, type, mode))
     throw_access_exception(virt, addr, type);
+
+  
   return paddr;
 }
 
