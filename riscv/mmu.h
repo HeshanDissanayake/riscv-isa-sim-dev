@@ -158,13 +158,6 @@ public:
 # define WRITE_MEM(addr, val, size) \
   proc->state.log_mem_write.push_back(std::make_tuple(addr, val, size));
 #endif
-
-  // if(proc){ \
-  //     if(proc->memtrace_dump_enable == true){ \
-  //       fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)addr, sizeof(type##_t));\
-  //     }\
-  //   } \
-
   // template for functions that store an aligned value to memory
   #define store_func(type, prefix, xlate_flags) \
     void prefix##_##type(reg_t addr, type##_t val) { \
