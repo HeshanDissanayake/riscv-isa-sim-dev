@@ -84,7 +84,7 @@ public:
   }
 
 #ifndef RISCV_ENABLE_COMMITLOG
-# define READ_MEM(addr, size) ({})
+# define READ_MEM(addr, size) ({if(proc->memtrace_dump_enable == true){fprintf(proc->get_memtrace_file(), "r 0x%" PRIx64 " %zu\n", (uint64_t)addr, size);}})
 #else
 # define READ_MEM(addr, size) \
   proc->state.log_mem_read.push_back(std::make_tuple(addr, 0, size));
@@ -153,7 +153,7 @@ public:
   load_func(int64, guest_load, RISCV_XLATE_VIRT)
 
 #ifndef RISCV_ENABLE_COMMITLOG
-# define WRITE_MEM(addr, value, size) ({})
+# define WRITE_MEM(addr, value, size) ({if(proc->memtrace_dump_enable == true){fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)addr, size);}})
 #else
 # define WRITE_MEM(addr, val, size) \
   proc->state.log_mem_write.push_back(std::make_tuple(addr, val, size));

@@ -76,12 +76,12 @@ reg_t mmu_t::translate(reg_t addr, reg_t len, access_type type, uint32_t xlate_f
     throw_access_exception(virt, addr, type);
 
   
-  if(proc->memtrace_dump_enable == true){ 
-    if(type == LOAD)
-      fprintf(proc->get_memtrace_file(), "r 0x%" PRIx64 " %zu\n", (uint64_t)paddr, len);
-    else if(type == STORE)
-    fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)paddr, len);
-  }
+  // if(proc->memtrace_dump_enable == true){ 
+  //   if(type == LOAD)
+  //     fprintf(proc->get_memtrace_file(), "r 0x%" PRIx64 " %zu\n", (uint64_t)paddr, len);
+  //   else if(type == STORE)
+  //   fprintf(proc->get_memtrace_file(), "w 0x%" PRIx64 " %zu\n", (uint64_t)paddr, len);
+  // }
   return paddr;
 }
 
