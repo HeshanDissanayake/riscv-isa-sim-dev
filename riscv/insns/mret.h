@@ -26,3 +26,8 @@ if(STATE.regsw_c !=0){
 //   p->in_exception = false;
 //   p->post_exp_cycles = POST_EXP_CYCLES;
 // }
+// [instr] state after mret's regsw handling (enabled by -l).
+if (p->debug)
+  fprintf(p->get_log_file(), "[regsw] core %3d: mret -> prv=%d en=%d c=0x%06" PRIx64 " mask=%" PRId64 " eregsw_c=0x%06" PRIx64 " eregsw_mask=%" PRId64 "\n",
+          p->get_id(), (int)STATE.prv, (int)STATE.regsw_enable, (uint64_t)STATE.regsw_c, (int64_t)STATE.regsw_mask,
+          (uint64_t)STATE.eregsw_c, (int64_t)STATE.eregsw_mask);

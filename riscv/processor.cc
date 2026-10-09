@@ -757,6 +757,13 @@ void processor_t::take_trap(trap_t& t, reg_t epc)
   state.regsw_mask = 0;
   state.regsw_enable = 0;
 
+  // [instr] trap entry, before the HS/VS-mode eregsw_mask decrement.
+  if (debug)
+    fprintf(log_file, "[regsw] core %3d: trap %s cause=0x%" PRIx64 " epc=0x%016" PRIx64 " prv=%d eregsw_c=0x%06" PRIx64
+            " eregsw_mask=%" PRId64 " eregsw_enable=%d\n",
+            id, t.name(), (uint64_t)t.cause(), (uint64_t)epc, (int)state.prv, (uint64_t)state.eregsw_c,
+            (int64_t)state.eregsw_mask, (int)state.eregsw_enable);
+
   if (debug_trigger) {
     fprintf(log_file,"\n\n\n");
     print_pre_exp_log();

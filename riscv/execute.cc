@@ -273,6 +273,17 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
       }
     }
 
+  // [instr] one line per execute_insn call (CSR insns appear twice), enabled by -l.
+  if (p->debug) {
+    state_t* s = p->get_state();
+    fprintf(p->get_log_file(), "[regsw] core %3d: 0x%016" PRIx64 " (0x%08" PRIx64 ") %-28s prv=%d en=%d c=0x%06" PRIx64
+            " mask=%" PRId64 " rd=%d rs1=%d rs2=%d\n",
+            p->get_id(), (uint64_t)pc, (uint64_t)fetch.insn.bits(),
+            p->get_disassembler()->disassemble(fetch.insn).c_str(), (int)s->prv, (int)s->regsw_enable,
+            (uint64_t)s->regsw_c, (int64_t)s->regsw_mask, (int)s->regsw_bank_rd, (int)s->regsw_bank_rs1,
+            (int)s->regsw_bank_rs2);
+  }
+
   if(p->get_state()->regsw_enable){
     p->get_state()->regsw_mask++;
   }
