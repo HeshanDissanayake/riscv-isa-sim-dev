@@ -28,6 +28,7 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  -g                    Track histogram of PCs\n");
   fprintf(stderr, "  -l                    Generate a log of execution\n");
   fprintf(stderr, "  -h, --help            Print this help message\n");
+  fprintf(stderr, "  --xreg-stats=<path>   Write xreg ROI instruction counts and PC histogram to <path>\n");
   fprintf(stderr, "  -H                    Start halted, allowing a debugger to connect\n");
   fprintf(stderr, "  --isa=<name>          RISC-V ISA string [default %s]\n", DEFAULT_ISA);
   fprintf(stderr, "  --priv=<m|mu|msu>     RISC-V privilege modes supported [default %s]\n", DEFAULT_PRIV);
@@ -226,6 +227,7 @@ int main(int argc, char** argv)
   bool log_cache = false;
   bool log_commits = false;
   const char *log_path = nullptr;
+  const char *xreg_stats_path = nullptr;
   std::vector<std::function<extension_t*()>> extensions;
   const char* initrd = NULL;
   const char* isa = DEFAULT_ISA;
@@ -360,6 +362,8 @@ int main(int argc, char** argv)
                 [&](const char* s){log_commits = true;});
   parser.option(0, "log", 1,
                 [&](const char* s){log_path = s;});
+  parser.option(0, "xreg-stats", 1,
+                [&](const char* s){xreg_stats_path = s;});
 
   auto argv1 = parser.parse(argv);
   std::vector<std::string> htif_args(argv1, (const char*const*)argv + argc);
@@ -426,6 +430,9 @@ int main(int argc, char** argv)
   s.set_debug(debug);
   s.configure_log(log, log_commits);
   s.set_histogram(histogram);
+  if (xreg_stats_path)
+    for (size_t i = 0; i < nprocs; i++)
+      s.get_core(i)->xreg_stats_path = xreg_stats_path;
 
   auto return_code = s.run();
 

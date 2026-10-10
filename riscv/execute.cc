@@ -176,9 +176,30 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   commit_log_stash_privilege(p);
   reg_t npc;
 
+  // xreg: apply the pending prefix (if any) to this instruction
+  state_t* xs = p->get_state();
+  xs->xpfx_cur = xs->xpfx_pending;
+
   try {
     npc = fetch.func(p, fetch.insn, pc);
     if (npc != PC_SERIALIZE_BEFORE) {
+      // xreg: the instruction completed. Consume the prefix unless this
+      // instruction was the xpfx itself, and account it in the ROI.
+      if (xs->xpfx_set)
+        xs->xpfx_set = false;
+      else
+        xs->xpfx_pending = 0;
+      if (p->roi_active) {
+        uint32_t op = fetch.insn.bits() & 0x7f;
+        if (op == 0x0b)
+          p->roi_prefix++;
+        else if (op == 0x2b)
+          p->roi_markers++;
+        else {
+          p->roi_insns++;
+          p->roi_hist[pc]++;
+        }
+      }
 
 #ifdef RISCV_ENABLE_COMMITLOG
       if (p->get_log_commits_enabled()) {

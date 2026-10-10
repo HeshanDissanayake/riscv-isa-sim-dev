@@ -67,6 +67,9 @@ riscv_gen_hdrs = \
 
 
 riscv_insn_ext_i = \
+	xpfx \
+	xroi_begin \
+	xroi_end \
 	add \
 	addi \
 	addiw \

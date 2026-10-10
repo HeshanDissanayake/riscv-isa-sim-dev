@@ -55,8 +55,31 @@ processor_t::processor_t(const char* isa, const char* priv, const char* varch,
   reset();
 }
 
+void processor_t::xreg_write_stats()
+{
+  if (xreg_stats_path.empty())
+    return;
+  FILE* f = fopen(xreg_stats_path.c_str(), "w");
+  if (!f) {
+    fprintf(stderr, "xreg: cannot open %s\n", xreg_stats_path.c_str());
+    return;
+  }
+  fprintf(f, "# xreg-stats v1 (docs/infra/xreg-encoding.md)\n");
+  fprintf(f, "roi_entries %" PRIu64 "\n", roi_entries);
+  fprintf(f, "roi_insns %" PRIu64 "\n", roi_insns);
+  fprintf(f, "roi_prefix %" PRIu64 "\n", roi_prefix);
+  fprintf(f, "roi_markers %" PRIu64 "\n", roi_markers);
+  std::vector<std::pair<reg_t,uint64_t>> v(roi_hist.begin(), roi_hist.end());
+  std::sort(v.begin(), v.end());
+  fprintf(f, "hist %zu\n", v.size());
+  for (auto& e : v)
+    fprintf(f, "%" PRIx64 " %" PRIu64 "\n", e.first, e.second);
+  fclose(f);
+}
+
 processor_t::~processor_t()
 {
+  xreg_write_stats();
 #ifdef RISCV_ENABLE_HISTOGRAM
   if (histogram_enabled)
   {
@@ -317,6 +340,9 @@ void state_t::reset(reg_t max_isa)
 {
   pc = DEFAULT_RSTVEC;
   XPR.reset();
+  xpfx_pending = 0;
+  xpfx_cur = 0;
+  xpfx_set = false;
   FPR.reset();
 
   prv = PRV_M;
@@ -683,6 +709,10 @@ void processor_t::enter_debug_mode(uint8_t cause)
 
 void processor_t::take_trap(trap_t& t, reg_t epc)
 {
+  // xreg: a trap discards any pending prefix
+  state.xpfx_pending = 0;
+  state.xpfx_set = false;
+
   if (debug) {
     fprintf(log_file, "core %3d: exception %s, epc 0x%0*" PRIx64 "\n",
             id, t.name(), max_xlen/4, zext(epc, max_xlen));

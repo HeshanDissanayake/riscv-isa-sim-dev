@@ -26,7 +26,7 @@ typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;
 #endif
 
-const int NXPR = 32;
+const int NXPR = 256;  // xreg: x0..x255 (docs/infra/xreg-encoding.md)
 const int NFPR = 32;
 const int NVPR = 32;
 const int NCSR = 4096;
@@ -179,10 +179,16 @@ private:
 #define READ_REG(reg) STATE.XPR[reg]
 #define READ_FREG(reg) STATE.FPR[reg]
 #define RD READ_REG(insn.rd())
-#define RS1 READ_REG(insn.rs1())
-#define RS2 READ_REG(insn.rs2())
-#define RS3 READ_REG(insn.rs3())
-#define WRITE_RD(value) WRITE_REG(insn.rd(), value)
+// xreg: an xpfx prefix supplies the upper 3 bits of each integer register
+// operand of the next instruction (STATE.xpfx_cur, 0 when there is none).
+#define XPFX_RD  ((STATE.xpfx_cur >> 0) & 7)
+#define XPFX_RS1 ((STATE.xpfx_cur >> 3) & 7)
+#define XPFX_RS2 ((STATE.xpfx_cur >> 6) & 7)
+#define XPFX_RS3 ((STATE.xpfx_cur >> 9) & 7)
+#define RS1 READ_REG(insn.rs1() | (XPFX_RS1 << 5))
+#define RS2 READ_REG(insn.rs2() | (XPFX_RS2 << 5))
+#define RS3 READ_REG(insn.rs3() | (XPFX_RS3 << 5))
+#define WRITE_RD(value) WRITE_REG(insn.rd() | (XPFX_RD << 5), value)
 
 #ifndef RISCV_ENABLE_COMMITLOG
 # define WRITE_REG(reg, value) STATE.XPR.write(reg, value)

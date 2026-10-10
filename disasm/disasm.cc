@@ -558,6 +558,18 @@ disassembler_t::disassembler_t(int xlen)
   DEFINE_I0TYPE("li", addi);
   DEFINE_I1TYPE("mv", addi);
   DEFINE_ITYPE(addi);
+
+  // xreg research encoding (docs/infra/xreg-encoding.md)
+  static struct : public arg_t {
+    std::string to_string(insn_t insn) const {
+      uint32_t b = insn.bits();
+      return std::to_string((b >> 7) & 7) + ", " + std::to_string((b >> 10) & 7) + ", " +
+             std::to_string((b >> 13) & 7) + ", " + std::to_string((b >> 16) & 7);
+    }
+  } xpfx_args;
+  add_insn(new disasm_insn_t("xpfx", match_xpfx, mask_xpfx, {&xpfx_args}));
+  add_insn(new disasm_insn_t("xroi.begin", match_xroi_begin, mask_xroi_begin, {}));
+  add_insn(new disasm_insn_t("xroi.end", match_xroi_end, mask_xroi_end, {}));
   DEFINE_ITYPE(slti);
   add_insn(new disasm_insn_t("seqz", match_sltiu | (1 << imm_shift), mask_sltiu | mask_imm, {&xrd, &xrs1}));
   DEFINE_ITYPE(sltiu);

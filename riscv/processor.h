@@ -217,6 +217,11 @@ struct state_t
   uint32_t frm;
   bool serialized; // whether timer CSRs are in a well-defined state
 
+  // xreg (docs/infra/xreg-encoding.md): prefix state
+  uint32_t xpfx_pending;  // payload of the last xpfx, for the next instruction
+  uint32_t xpfx_cur;      // payload applied to the executing instruction
+  bool xpfx_set;          // the executing instruction is the xpfx itself
+
   // When true, execute a single instruction and then enter debug mode.  This
   // can only be set by executing dret.
   enum {
@@ -453,6 +458,19 @@ private:
 
   std::vector<insn_desc_t> instructions;
   std::map<reg_t,uint64_t> pc_histogram;
+
+public:
+  // xreg: region-of-interest statistics (xroi.begin / xroi.end)
+  bool roi_active = false;
+  uint64_t roi_insns = 0;    // retired in ROI, excluding xpfx / xroi
+  uint64_t roi_prefix = 0;   // xpfx retired in ROI
+  uint64_t roi_markers = 0;  // xroi retired in ROI
+  uint64_t roi_entries = 0;  // number of xroi.begin
+  std::unordered_map<reg_t,uint64_t> roi_hist;  // per-PC retire count in ROI
+  std::string xreg_stats_path;
+  void xreg_set_roi(bool on) { if (on && !roi_active) roi_entries++; roi_active = on; }
+  void xreg_write_stats();
+private:
 
   static const size_t OPCODE_CACHE_SIZE = 8191;
   insn_desc_t opcode_cache[OPCODE_CACHE_SIZE];
