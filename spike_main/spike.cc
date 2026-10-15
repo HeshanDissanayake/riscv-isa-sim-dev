@@ -14,6 +14,31 @@
 #include <memory>
 #include <fstream>
 #include "../VERSION"
+#include <unordered_map>
+
+// xreg: per-address load/store counts in the ROI (--xreg-addrhist=<path>),
+// for estimating which data could live in registers. Analysis only.
+class xreg_addrhist_t : public memtracer_t
+{
+ public:
+  processor_t* p = nullptr;
+  std::unordered_map<uint64_t, std::pair<uint64_t, uint64_t>> h;
+  bool interested_in_range(uint64_t, uint64_t, access_type type) override { return type != FETCH; }
+  void trace(uint64_t addr, size_t, access_type type) override {
+    if (p && p->roi_active) {
+      auto& e = h[addr];
+      if (type == STORE) e.second++; else e.first++;
+    }
+  }
+  void dump(const char* path) {
+    FILE* f = fopen(path, "w");
+    if (!f) return;
+    for (auto& [a, c] : h)
+      fprintf(f, "%" PRIx64 " %" PRIu64 " %" PRIu64 "\n", a, c.first, c.second);
+    fclose(f);
+  }
+};
+
 
 static void help(int exit_code = 1)
 {
@@ -230,6 +255,8 @@ int main(int argc, char** argv)
   const char *log_path = nullptr;
   const char *xreg_stats_path = nullptr;
   unsigned xreg_ic[3] = {0, 0, 0};
+  const char* xreg_addrhist_path = nullptr;
+  xreg_addrhist_t xreg_addrhist;
   std::vector<std::function<extension_t*()>> extensions;
   const char* initrd = NULL;
   const char* isa = DEFAULT_ISA;
@@ -366,6 +393,7 @@ int main(int argc, char** argv)
                 [&](const char* s){log_path = s;});
   parser.option(0, "xreg-stats", 1,
                 [&](const char* s){xreg_stats_path = s;});
+  parser.option(0, "xreg-addrhist", 1, [&](const char* s){xreg_addrhist_path = s;});
   parser.option(0, "xreg-icache", 1, [&](const char* s){
     if (sscanf(s, "%u:%u:%u", &xreg_ic[0], &xreg_ic[1], &xreg_ic[2]) != 3 ||
         !xreg_ic[0] || !xreg_ic[1] || !xreg_ic[2]) {
@@ -449,7 +477,15 @@ int main(int argc, char** argv)
       }
     }
 
+  if (xreg_addrhist_path) {
+    xreg_addrhist.p = s.get_core(0);
+    s.get_core(0)->get_mmu()->register_memtracer(&xreg_addrhist);
+  }
+
   auto return_code = s.run();
+
+  if (xreg_addrhist_path)
+    xreg_addrhist.dump(xreg_addrhist_path);
 
   for (auto& mem : mems)
     delete mem.second;
