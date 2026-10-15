@@ -54,6 +54,7 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  -l                    Generate a log of execution\n");
   fprintf(stderr, "  -h, --help            Print this help message\n");
   fprintf(stderr, "  --xreg-stats=<path>   Write xreg ROI instruction counts and PC histogram to <path>\n");
+  fprintf(stderr, "  --xreg-stats-per-roi  With --xreg-stats: write <path>.<n> at the end of the n-th ROI and reset (one stats file per run under Linux)\n");
   fprintf(stderr, "  --xreg-icache=<S>:<W>:<B>  With --xreg-stats: model an S-set, W-way, B-byte-block LRU I-cache over ROI fetches\n");
   fprintf(stderr, "  -H                    Start halted, allowing a debugger to connect\n");
   fprintf(stderr, "  --isa=<name>          RISC-V ISA string [default %s]\n", DEFAULT_ISA);
@@ -254,6 +255,7 @@ int main(int argc, char** argv)
   bool log_commits = false;
   const char *log_path = nullptr;
   const char *xreg_stats_path = nullptr;
+  bool xreg_per_roi = false;
   unsigned xreg_ic[3] = {0, 0, 0};
   const char* xreg_addrhist_path = nullptr;
   xreg_addrhist_t xreg_addrhist;
@@ -393,6 +395,7 @@ int main(int argc, char** argv)
                 [&](const char* s){log_path = s;});
   parser.option(0, "xreg-stats", 1,
                 [&](const char* s){xreg_stats_path = s;});
+  parser.option(0, "xreg-stats-per-roi", 0, [&](const char*){xreg_per_roi = true;});
   parser.option(0, "xreg-addrhist", 1, [&](const char* s){xreg_addrhist_path = s;});
   parser.option(0, "xreg-icache", 1, [&](const char* s){
     if (sscanf(s, "%u:%u:%u", &xreg_ic[0], &xreg_ic[1], &xreg_ic[2]) != 3 ||
@@ -470,6 +473,7 @@ int main(int argc, char** argv)
   if (xreg_stats_path)
     for (size_t i = 0; i < nprocs; i++) {
       s.get_core(i)->xreg_stats_path = xreg_stats_path;
+      s.get_core(i)->xreg_per_roi = xreg_per_roi;
       if (xreg_ic[0]) {
         auto* c = s.get_core(i);
         c->ic_sets = xreg_ic[0]; c->ic_ways = xreg_ic[1]; c->ic_block = xreg_ic[2];

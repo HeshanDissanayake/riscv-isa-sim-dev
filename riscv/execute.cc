@@ -167,6 +167,19 @@ inline void processor_t::update_histogram(reg_t pc)
 #endif
 }
 
+// xreg v5: is this instruction a data load/store (incl. FP, AMO, compressed)?
+static inline bool xreg_is_mem(uint64_t b)
+{
+  if ((b & 3) != 3) {                       // RVC
+    unsigned q = b & 3, f3 = (b >> 13) & 7;
+    return (q == 0 || q == 2) && f3 != 0 && f3 != 4;
+  }
+  switch (b & 0x7f) {
+  case 0x03: case 0x07: case 0x23: case 0x27: case 0x2f: return true;
+  default: return false;
+  }
+}
+
 // This is expected to be inlined by the compiler so each use of execute_insn
 // includes a duplicated body of the function to get separate fetch.func
 // function calls.
@@ -179,6 +192,7 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
   // xreg: apply the pending prefix (if any) to this instruction
   state_t* xs = p->get_state();
   xs->xpfx_cur = xs->xpfx_pending;
+  const reg_t prv0 = xs->prv;  // privilege the instruction executes in
 
   try {
     npc = fetch.func(p, fetch.insn, pc);
@@ -197,8 +211,17 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
         else if (op == 0x2b)
           p->roi_markers++;
         else {
+          // v5 (Linux): everything in the ROI window counts (program + kernel);
+          // kernel-mode instructions and all loads/stores are also counted
+          // here, since only user code carries the compiler's load/store tags.
+          bool kern = prv0 != p->roi_prv;  // not the mode that began the ROI
+          bool mem = xreg_is_mem(fetch.insn.bits());
           p->roi_insns++;
-          p->roi_hist[pc]++;
+          p->roi_insns_k += kern;
+          p->roi_mem += mem;
+          p->roi_mem_k += kern && mem;
+          if (!kern)
+            p->roi_hist[pc]++;
         }
       }
 

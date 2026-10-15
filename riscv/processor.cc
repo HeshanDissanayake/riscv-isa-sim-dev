@@ -55,13 +55,23 @@ processor_t::processor_t(const char* isa, const char* priv, const char* varch,
   reset();
 }
 
-void processor_t::xreg_write_stats()
+void processor_t::xreg_reset_roi()
+{
+  roi_insns = roi_prefix = roi_markers = 0;
+  roi_insns_k = roi_mem = roi_mem_k = 0;
+  roi_ic_accesses = roi_ic_misses = 0;
+  roi_hist.clear();
+  for (auto& set : ic_tags)
+    set.clear();
+}
+
+void processor_t::xreg_write_stats(const std::string& path)
 {
   if (xreg_stats_path.empty())
     return;
-  FILE* f = fopen(xreg_stats_path.c_str(), "w");
+  FILE* f = fopen(path.c_str(), "w");
   if (!f) {
-    fprintf(stderr, "xreg: cannot open %s\n", xreg_stats_path.c_str());
+    fprintf(stderr, "xreg: cannot open %s\n", path.c_str());
     return;
   }
   fprintf(f, "# xreg-stats v1 (docs/infra/xreg-encoding.md)\n");
@@ -69,6 +79,9 @@ void processor_t::xreg_write_stats()
   fprintf(f, "roi_insns %" PRIu64 "\n", roi_insns);
   fprintf(f, "roi_prefix %" PRIu64 "\n", roi_prefix);
   fprintf(f, "roi_markers %" PRIu64 "\n", roi_markers);
+  fprintf(f, "roi_insns_kernel %" PRIu64 "\n", roi_insns_k);
+  fprintf(f, "roi_mem %" PRIu64 "\n", roi_mem);
+  fprintf(f, "roi_mem_kernel %" PRIu64 "\n", roi_mem_k);
   if (ic_sets) {
     fprintf(f, "roi_ic_bytes %u\n", ic_sets * ic_ways * ic_block);
     fprintf(f, "roi_ic_accesses %" PRIu64 "\n", roi_ic_accesses);
@@ -714,7 +727,13 @@ void processor_t::enter_debug_mode(uint8_t cause)
 
 void processor_t::take_trap(trap_t& t, reg_t epc)
 {
-  // xreg: a trap discards any pending prefix
+  // xreg: a trap discards any pending prefix. If the trap hits the prefixed
+  // instruction (an exception in it, or an interrupt taken between the prefix
+  // and it), resume at the prefix (always 4 bytes, directly before), so the
+  // pair re-executes as a unit after the handler returns (Linux: page faults,
+  // timer interrupts).
+  if (state.xpfx_pending && !state.xpfx_set)
+    epc -= 4;
   state.xpfx_pending = 0;
   state.xpfx_set = false;
 

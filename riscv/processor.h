@@ -466,6 +466,11 @@ public:
   uint64_t roi_prefix = 0;   // xpfx retired in ROI
   uint64_t roi_markers = 0;  // xroi retired in ROI
   uint64_t roi_entries = 0;  // number of xroi.begin
+  reg_t roi_prv = PRV_M;     // v5: privilege of the xroi.begin (the program's mode)
+  uint64_t roi_insns_k = 0;  // v5: of roi_insns, executed in another mode (kernel, firmware)
+  uint64_t roi_mem = 0;      // v5: loads/stores retired in ROI (all modes, decoded by Spike)
+  uint64_t roi_mem_k = 0;    // v5: of roi_mem, in another mode
+  bool xreg_per_roi = false; // v5: --xreg-stats-per-roi: write <path>.<n> at each xroi.end, then reset
   std::unordered_map<reg_t,uint64_t> roi_hist;  // per-PC retire count in ROI
   std::string xreg_stats_path;
   // xreg: instruction-cache model over ROI fetches (--xreg-icache=S:W:B):
@@ -491,8 +496,18 @@ public:
     if (set.size() > ic_ways)
       set.pop_back();
   }
-  void xreg_set_roi(bool on) { if (on && !roi_active) roi_entries++; roi_active = on; }
-  void xreg_write_stats();
+  void xreg_set_roi(bool on) {
+    if (on && !roi_active) { roi_entries++; roi_prv = get_state()->prv; }
+    bool ending = roi_active && !on;
+    roi_active = on;
+    if (ending && xreg_per_roi) {
+      xreg_write_stats(xreg_stats_path + "." + std::to_string(roi_entries));
+      xreg_reset_roi();
+    }
+  }
+  void xreg_reset_roi();
+  void xreg_write_stats() { if (!xreg_per_roi) xreg_write_stats(xreg_stats_path); }
+  void xreg_write_stats(const std::string& path);
 private:
 
   static const size_t OPCODE_CACHE_SIZE = 8191;
