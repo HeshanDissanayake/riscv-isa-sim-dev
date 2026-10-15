@@ -501,10 +501,16 @@ public:
     bool ending = roi_active && !on;
     roi_active = on;
     if (ending && xreg_per_roi) {
-      xreg_write_stats(xreg_stats_path + "." + std::to_string(roi_entries));
+      xreg_write_stats(xreg_stats_path + "." +
+                       (roi_tag >= 0 ? std::to_string(roi_tag) : std::to_string(roi_entries)));
       xreg_reset_roi();
+      roi_tag = -1;
     }
   }
+  // v5: xroi.tag rs1 names the next per-ROI stats file <path>.<x[rs1]> and
+  // discards any unfinished ROI (a run that crashed inside its ROI).
+  int64_t roi_tag = -1;
+  void xreg_roi_tag(reg_t v) { roi_active = false; xreg_reset_roi(); roi_tag = (int64_t)(v & 0x7fffffff); }
   void xreg_reset_roi();
   void xreg_write_stats() { if (!xreg_per_roi) xreg_write_stats(xreg_stats_path); }
   void xreg_write_stats(const std::string& path);

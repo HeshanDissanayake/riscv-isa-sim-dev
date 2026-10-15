@@ -70,6 +70,7 @@ riscv_insn_ext_i = \
 	xpfx \
 	xroi_begin \
 	xroi_end \
+	xroi_tag \
 	xrget \
 	xrset \
 	add \

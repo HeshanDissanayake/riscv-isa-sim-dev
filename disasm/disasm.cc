@@ -570,6 +570,7 @@ disassembler_t::disassembler_t(int xlen)
   add_insn(new disasm_insn_t("xpfx", match_xpfx, mask_xpfx, {&xpfx_args}));
   add_insn(new disasm_insn_t("xroi.begin", match_xroi_begin, mask_xroi_begin, {}));
   add_insn(new disasm_insn_t("xroi.end", match_xroi_end, mask_xroi_end, {}));
+  add_insn(new disasm_insn_t("xroi.tag", match_xroi_tag, mask_xroi_tag, {&xrs1}));
   DEFINE_ITYPE(slti);
   add_insn(new disasm_insn_t("seqz", match_sltiu | (1 << imm_shift), mask_sltiu | mask_imm, {&xrd, &xrs1}));
   DEFINE_ITYPE(sltiu);

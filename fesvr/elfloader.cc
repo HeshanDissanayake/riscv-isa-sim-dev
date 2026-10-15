@@ -33,7 +33,8 @@ std::map<std::string, uint64_t> load_elf(const char* fn, memif_t* memif, reg_t* 
   const Elf64_Ehdr* eh64 = (const Elf64_Ehdr*)buf;
   assert(IS_ELF32(*eh64) || IS_ELF64(*eh64));
   assert(IS_ELFLE(*eh64) || IS_ELFBE(*eh64));
-  assert(IS_ELF_EXEC(*eh64));
+  // v5: also static-PIE images (OpenSBI >= 1.6), loaded at their own addresses
+  assert(IS_ELF_EXEC(*eh64) || IS_ELF_DYN(*eh64));
   assert(IS_ELF_RISCV(*eh64) || IS_ELF_EM_NONE(*eh64));
   assert(IS_ELF_VCURRENT(*eh64));
 
