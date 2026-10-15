@@ -69,6 +69,11 @@ void processor_t::xreg_write_stats()
   fprintf(f, "roi_insns %" PRIu64 "\n", roi_insns);
   fprintf(f, "roi_prefix %" PRIu64 "\n", roi_prefix);
   fprintf(f, "roi_markers %" PRIu64 "\n", roi_markers);
+  if (ic_sets) {
+    fprintf(f, "roi_ic_bytes %u\n", ic_sets * ic_ways * ic_block);
+    fprintf(f, "roi_ic_accesses %" PRIu64 "\n", roi_ic_accesses);
+    fprintf(f, "roi_ic_misses %" PRIu64 "\n", roi_ic_misses);
+  }
   std::vector<std::pair<reg_t,uint64_t>> v(roi_hist.begin(), roi_hist.end());
   std::sort(v.begin(), v.end());
   fprintf(f, "hist %zu\n", v.size());

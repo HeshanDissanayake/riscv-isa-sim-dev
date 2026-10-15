@@ -29,6 +29,7 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  -l                    Generate a log of execution\n");
   fprintf(stderr, "  -h, --help            Print this help message\n");
   fprintf(stderr, "  --xreg-stats=<path>   Write xreg ROI instruction counts and PC histogram to <path>\n");
+  fprintf(stderr, "  --xreg-icache=<S>:<W>:<B>  With --xreg-stats: model an S-set, W-way, B-byte-block LRU I-cache over ROI fetches\n");
   fprintf(stderr, "  -H                    Start halted, allowing a debugger to connect\n");
   fprintf(stderr, "  --isa=<name>          RISC-V ISA string [default %s]\n", DEFAULT_ISA);
   fprintf(stderr, "  --priv=<m|mu|msu>     RISC-V privilege modes supported [default %s]\n", DEFAULT_PRIV);
@@ -228,6 +229,7 @@ int main(int argc, char** argv)
   bool log_commits = false;
   const char *log_path = nullptr;
   const char *xreg_stats_path = nullptr;
+  unsigned xreg_ic[3] = {0, 0, 0};
   std::vector<std::function<extension_t*()>> extensions;
   const char* initrd = NULL;
   const char* isa = DEFAULT_ISA;
@@ -364,6 +366,13 @@ int main(int argc, char** argv)
                 [&](const char* s){log_path = s;});
   parser.option(0, "xreg-stats", 1,
                 [&](const char* s){xreg_stats_path = s;});
+  parser.option(0, "xreg-icache", 1, [&](const char* s){
+    if (sscanf(s, "%u:%u:%u", &xreg_ic[0], &xreg_ic[1], &xreg_ic[2]) != 3 ||
+        !xreg_ic[0] || !xreg_ic[1] || !xreg_ic[2]) {
+      fprintf(stderr, "bad --xreg-icache=%s (want S:W:B)\n", s);
+      exit(1);
+    }
+  });
 
   auto argv1 = parser.parse(argv);
   std::vector<std::string> htif_args(argv1, (const char*const*)argv + argc);
@@ -431,8 +440,14 @@ int main(int argc, char** argv)
   s.configure_log(log, log_commits);
   s.set_histogram(histogram);
   if (xreg_stats_path)
-    for (size_t i = 0; i < nprocs; i++)
+    for (size_t i = 0; i < nprocs; i++) {
       s.get_core(i)->xreg_stats_path = xreg_stats_path;
+      if (xreg_ic[0]) {
+        auto* c = s.get_core(i);
+        c->ic_sets = xreg_ic[0]; c->ic_ways = xreg_ic[1]; c->ic_block = xreg_ic[2];
+        c->ic_tags.assign(xreg_ic[0], {});
+      }
+    }
 
   auto return_code = s.run();
 

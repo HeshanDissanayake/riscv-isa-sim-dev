@@ -468,6 +468,29 @@ public:
   uint64_t roi_entries = 0;  // number of xroi.begin
   std::unordered_map<reg_t,uint64_t> roi_hist;  // per-PC retire count in ROI
   std::string xreg_stats_path;
+  // xreg: instruction-cache model over ROI fetches (--xreg-icache=S:W:B):
+  // set-associative, LRU, cold at the first xroi.begin; every instruction
+  // fetched in the ROI is an access (xpfx and xroi included).
+  unsigned ic_sets = 0, ic_ways = 0, ic_block = 0;
+  std::vector<std::vector<reg_t>> ic_tags;  // per set, most recent first
+  uint64_t roi_ic_accesses = 0, roi_ic_misses = 0;
+  void xreg_icache_access(reg_t pc) {
+    if (!ic_sets)
+      return;
+    roi_ic_accesses++;
+    reg_t blk = pc / ic_block;
+    auto& set = ic_tags[blk % ic_sets];
+    for (size_t i = 0; i < set.size(); i++)
+      if (set[i] == blk) {
+        set.erase(set.begin() + i);
+        set.insert(set.begin(), blk);
+        return;
+      }
+    roi_ic_misses++;
+    set.insert(set.begin(), blk);
+    if (set.size() > ic_ways)
+      set.pop_back();
+  }
   void xreg_set_roi(bool on) { if (on && !roi_active) roi_entries++; roi_active = on; }
   void xreg_write_stats();
 private:

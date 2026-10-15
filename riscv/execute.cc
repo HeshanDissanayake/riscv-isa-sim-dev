@@ -190,6 +190,7 @@ static reg_t execute_insn(processor_t* p, reg_t pc, insn_fetch_t fetch)
       else
         xs->xpfx_pending = 0;
       if (p->roi_active) {
+        p->xreg_icache_access(pc);
         uint32_t op = fetch.insn.bits() & 0x7f;
         if (op == 0x0b)
           p->roi_prefix++;
